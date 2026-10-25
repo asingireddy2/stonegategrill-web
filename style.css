@@ -171,6 +171,9 @@ h2 { font-family: Fraunces, serif; font-weight: 800; font-size: clamp(1.9rem, 4v
 .order-done { margin-top: 36px; background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 32px 28px; }
 .order-done h3 { font-family: Fraunces, serif; font-size: 1.6rem; margin-bottom: 6px; }
 .order-done p { color: var(--ink-soft); }
+.venmo-qr { margin-top: 22px; display: inline-flex; flex-direction: column; align-items: center; gap: 8px; }
+.venmo-qr img { width: 180px; height: auto; border-radius: 12px; background: #fff; padding: 8px; border: 1px solid var(--line); }
+.venmo-qr figcaption { font-size: .9rem; color: var(--ink-soft); }
 
 footer { background: var(--char); color: rgba(247,240,227,0.6); font-size: 0.85rem; padding: 26px 0; }
 footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
