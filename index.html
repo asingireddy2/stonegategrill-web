@@ -18,6 +18,7 @@
     <p class="tagline">Chicken wings and catering trays from our family recipe. Orange County, CA.</p>
     <div class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" id="tab-menu" aria-controls="menu" data-tab="menu">Menu</button>
+      <button class="tab" role="tab" id="tab-order" aria-controls="order" data-tab="order">Order</button>
       <button class="tab" role="tab" id="tab-story" aria-controls="story" data-tab="story">Our Story</button>
       <button class="tab" role="tab" id="tab-flavors" aria-controls="flavors" data-tab="flavors">Flavors</button>
       <button class="tab" role="tab" id="tab-find" aria-controls="find" data-tab="find">Find Us</button>
@@ -56,8 +57,51 @@
       </div>
 
       <div class="menu-note">
-        <span>Ready to order or have questions?</span>
-        <a href="mailto:hello@stonegategrill.com?subject=Catering%20order">hello@stonegategrill.com</a>
+        <span>Ready to order?</span>
+        <button class="btn btn-gold" data-goto="order">Place an order</button>
+      </div>
+    </section>
+
+    <!-- ORDER -->
+    <section class="panel" id="order" role="tabpanel" aria-labelledby="tab-order" hidden>
+      <div class="eyebrow">Order</div>
+      <h2>Build your order.</h2>
+      <p class="lead">Pick your trays and send the order to us. We'll confirm by email, and you can pay with Venmo.</p>
+
+      <form id="order-form" class="order" novalidate>
+        <div class="order-items" id="order-items"></div>
+
+        <div class="order-total">
+          <span>Estimated total</span>
+          <strong id="order-total">$0</strong>
+        </div>
+
+        <div class="fields">
+          <label>Name<input name="name" required autocomplete="name"></label>
+          <label>Email<input name="email" type="email" required autocomplete="email"></label>
+          <label>Phone<input name="phone" type="tel" required autocomplete="tel"></label>
+          <label>Event date<input name="date" type="date" required></label>
+          <label class="full">Pickup or delivery
+            <select name="fulfillment">
+              <option>Pickup</option>
+              <option>Delivery (we'll confirm the address and fee)</option>
+            </select>
+          </label>
+          <label class="full">Notes<textarea name="notes" rows="3" placeholder="Event address, allergies, timing, anything else"></textarea></label>
+          <input type="text" name="_honey" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        </div>
+
+        <p class="form-msg" id="order-msg" role="status"></p>
+        <button class="btn btn-big" type="submit" id="order-submit">Send order</button>
+      </form>
+
+      <div class="order-done" id="order-done" hidden>
+        <h3>Thanks, your order is in!</h3>
+        <p>We'll email you to confirm the details. You can pay now with Venmo.</p>
+        <div class="btns">
+          <a class="btn btn-venmo" id="venmo-pay" target="_blank" rel="noopener">Pay $0 with Venmo</a>
+          <button class="btn btn-ghost" type="button" id="order-again">Start another order</button>
+        </div>
       </div>
     </section>
 
@@ -111,6 +155,7 @@
         <div class="btns">
           <a class="btn" href="mailto:hello@stonegategrill.com">hello@stonegategrill.com</a>
           <a class="btn" href="https://instagram.com/" target="_blank" rel="noopener">Instagram</a>
+          <a class="btn" id="venmo-link" target="_blank" rel="noopener">Pay with Venmo</a>
         </div>
       </div>
     </section>
@@ -155,6 +200,147 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     })
   );
+
+  // ---- Order form ----
+  const ORDER_EMAIL = 'hello@stonegategrill.com';
+  const VENMO_USER = 'Amar-Singireddy'; // your Venmo username, without the @
+
+  const FLAVORS = ['Original Hot', 'Lemon Pepper', 'Mustard', 'Cilantro-Mint', 'Garlic-Butter'];
+  const FLAVOR_PICKS = { half: 2, full: 4 }; // flavors per chicken tray
+  const ITEMS = [
+    { name: 'Wings', note: '50 / 100 pieces', half: 100, full: 180, flavor: true },
+    { name: 'Chicken Breast', half: 120, full: 200, flavor: true },
+    { name: 'Saffron Rice', half: 25, full: 50 },
+    { name: 'Vegetable Rice', half: 50, full: 90 },
+    { name: 'Vegetables', half: 75, full: 125 },
+    { name: 'Salad', half: 25, full: 50 },
+  ];
+
+  const venmoUrl = (amount, note) => {
+    const p = new URLSearchParams({ txn: 'pay', recipients: VENMO_USER });
+    if (amount) p.set('amount', amount);
+    if (note) p.set('note', note);
+    return 'https://account.venmo.com/pay?' + p;
+  };
+  document.getElementById('venmo-link').href = venmoUrl();
+
+  const form = document.getElementById('order-form');
+  const itemsEl = document.getElementById('order-items');
+  const totalEl = document.getElementById('order-total');
+  const msgEl = document.getElementById('order-msg');
+  const submitBtn = document.getElementById('order-submit');
+  const doneEl = document.getElementById('order-done');
+
+  itemsEl.innerHTML = ITEMS.map((it, i) => `
+    <div class="oi">
+      <div class="oi-name">${it.name}${it.note ? `<small>${it.note}</small>` : ''}</div>
+      <label>Half <span>$${it.half}</span><input type="number" min="0" max="50" value="0" data-i="${i}" data-size="half" aria-label="${it.name} half trays"></label>
+      <label>Full <span>$${it.full}</span><input type="number" min="0" max="50" value="0" data-i="${i}" data-size="full" aria-label="${it.name} full trays"></label>
+      ${it.flavor ? `<div class="oi-flavors" data-flavors="${i}"></div>` : ''}
+    </div>`).join('');
+
+  const SIZE_LABEL = { half: 'Half', full: 'Full' };
+  const qtyOf = (i, size) =>
+    Math.max(0, parseInt(itemsEl.querySelector(`[data-i="${i}"][data-size="${size}"]`).value, 10) || 0);
+
+  // One row of flavor dropdowns per chicken tray, keeping any picks already made
+  function renderFlavors(i) {
+    const box = itemsEl.querySelector(`[data-flavors="${i}"]`);
+    if (!box) return;
+    const prev = {};
+    box.querySelectorAll('select').forEach(s => { prev[s.dataset.key] = s.value; });
+    let html = '';
+    ['half', 'full'].forEach(size => {
+      for (let t = 0; t < qtyOf(i, size); t++) {
+        const selects = Array.from({ length: FLAVOR_PICKS[size] }, (_, k) => {
+          const key = `${size}-${t}-${k}`;
+          const opts = FLAVORS.map(f => `<option${prev[key] === f ? ' selected' : ''}>${f}</option>`).join('');
+          return `<select data-key="${key}" aria-label="${SIZE_LABEL[size]} tray ${t + 1} flavor ${k + 1}"><option value="">Flavor ${k + 1}</option>${opts}</select>`;
+        }).join('');
+        html += `<div class="ft"><span>${SIZE_LABEL[size]} tray ${t + 1} <small>pick ${FLAVOR_PICKS[size]}</small></span><div class="ft-picks">${selects}</div></div>`;
+      }
+    });
+    box.innerHTML = html;
+  }
+
+  function readOrder() {
+    const lines = [];
+    let total = 0, missingFlavor = false;
+    ITEMS.forEach((it, i) => {
+      ['half', 'full'].forEach(size => {
+        const qty = qtyOf(i, size);
+        if (!qty) return;
+        const cost = qty * it[size];
+        total += cost;
+        lines.push(`${qty} x ${SIZE_LABEL[size]} ${it.name} = $${cost}`);
+        if (!it.flavor) return;
+        for (let t = 0; t < qty; t++) {
+          const picks = [...itemsEl.querySelectorAll(`[data-flavors="${i}"] select[data-key^="${size}-${t}-"]`)].map(s => s.value);
+          if (picks.some(p => !p)) missingFlavor = true;
+          lines.push(`    ${SIZE_LABEL[size]} tray ${t + 1}: ${picks.filter(Boolean).join(', ')}`);
+        }
+      });
+    });
+    return { lines, total, missingFlavor };
+  }
+
+  itemsEl.addEventListener('input', e => {
+    if (e.target.dataset.size) renderFlavors(+e.target.dataset.i);
+    totalEl.textContent = '$' + readOrder().total;
+  });
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const { lines, total, missingFlavor } = readOrder();
+    if (!lines.length) { msgEl.textContent = 'Add at least one tray to your order.'; return; }
+    if (missingFlavor) { msgEl.textContent = 'Pick all the flavors for each chicken tray (2 for half, 4 for full).'; return; }
+    if (!form.checkValidity()) { msgEl.textContent = 'Please fill in your name, email, phone, and event date.'; form.reportValidity(); return; }
+
+    const f = new FormData(form);
+    const payload = {
+      _subject: `New catering order from ${f.get('name')} ($${total})`,
+      _template: 'table',
+      _replyto: f.get('email'),
+      _honey: f.get('_honey'),
+      Name: f.get('name'),
+      Email: f.get('email'),
+      Phone: f.get('phone'),
+      'Event date': f.get('date'),
+      Fulfillment: f.get('fulfillment'),
+      Order: lines.join('\n'),
+      Total: '$' + total,
+      Notes: f.get('notes') || '-',
+    };
+
+    submitBtn.disabled = true;
+    msgEl.textContent = 'Sending...';
+    try {
+      const res = await fetch(`https://formsubmit.co/ajax/${ORDER_EMAIL}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(res.status);
+      const pay = document.getElementById('venmo-pay');
+      pay.href = venmoUrl(total, `Stonegate Grill order - ${f.get('name')} - ${f.get('date')}`);
+      pay.textContent = `Pay $${total} with Venmo`;
+      form.hidden = true;
+      doneEl.hidden = false;
+      msgEl.textContent = '';
+    } catch {
+      msgEl.textContent = `Sorry, the order didn't go through. Please try again or email ${ORDER_EMAIL}.`;
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  document.getElementById('order-again').addEventListener('click', () => {
+    form.reset();
+    ITEMS.forEach((_, i) => renderFlavors(i));
+    totalEl.textContent = '$0';
+    doneEl.hidden = true;
+    form.hidden = false;
+  });
 
   window.addEventListener('hashchange', () => show(location.hash.slice(1), false));
   show(location.hash.slice(1), false);
